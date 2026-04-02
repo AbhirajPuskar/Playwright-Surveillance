@@ -322,18 +322,11 @@ with sync_playwright() as p:
     page.screenshot(path="QR/test10_create_user_saved.png", full_page=True)
     print("  Screenshot saved: QR/test10_create_user_saved.png")
 
-    # Check if modal closed (success) or still open (error/duplicate)
+    # Check if modal closed (success) or still open (error)
     if page.locator('text=Create User').count() == 0:
         print("  PASS - User created successfully (modal closed)")
     else:
-        # Check if user already exists error is shown
-        if page.locator('text=already').count() > 0 or page.locator('text=exists').count() > 0 or page.locator('text=duplicate').count() > 0:
-            print("  INFO - User already exists, skipping to next step")
-        else:
-            print("  WARN - Modal still open, check for errors")
-        # Close the modal and continue
-        page.keyboard.press("Escape")
-        page.wait_for_timeout(500)
+        print("  WARN - Modal still open, check for errors")
 
     # ─────────────────────────────────────────
     # TEST 11: Click Setup tab (right of Users), then Camera Setup, then + Camera
@@ -412,8 +405,21 @@ with sync_playwright() as p:
     print("\n[TEST 13] Filling Create Camera Configuration with valid data...")
 
     # Form closed after TEST 12 Save — click + Camera to open fresh form
+    # Debug: find all buttons on the page
+    buttons = page.evaluate("""() => {
+        return Array.from(document.querySelectorAll('button')).map(b => ({
+            text: b.innerText.trim().substring(0, 40),
+            class: b.className.substring(0, 60)
+        }));
+    }""")
+    print(f"  Buttons on page: {buttons}")
+
+    # Click the + Camera button using Playwright native click
     page.get_by_role("button", name="Camera", exact=True).click()
     page.wait_for_timeout(3000)
+
+    page.screenshot(path="QR/test13_fresh_form.png")
+    print("  Screenshot saved: QR/test13_fresh_form.png")
 
     # Step 1: Camera Brand — find the autocomplete input and click to open dropdown
     brand_input = page.locator('input[placeholder="Hikvision"]')
