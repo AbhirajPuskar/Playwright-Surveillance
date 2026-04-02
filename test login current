@@ -1,0 +1,488 @@
+from playwright.sync_api import sync_playwright
+
+LOGIN_URL = "https://demorealcoderz.skilla.ai/login"
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=False, args=["--start-maximized"])
+    # Use a context with no_viewport so window size matches the maximized browser
+    context = browser.new_context(no_viewport=True)
+    page = context.new_page()
+
+    print("=" * 50)
+    print("QR Login Page - Basic Tests")
+    print("=" * 50)
+
+    # ────────────────────────────────────────
+    # TEST 1: Page Loads Successfully
+    # ─────────────────────────────────────────
+    print("\n[TEST 1] Checking if page loads...")
+    response = page.goto(LOGIN_URL, wait_until="networkidle")
+
+    if response and response.status == 200:
+        print("  PASS - Page loaded successfully (status 200)")
+    else:
+        print(f"  FAIL - Page did not load properly (status: {response.status if response else 'unknown'})")
+
+    print("  Page Title:", page.title())
+    print("  Current URL:", page.url)
+
+    # ─────────────────────────────────────────
+    # TEST 2: Check Login Form Elements Exist
+    # ─────────────────────────────────────────
+    print("\n[TEST 2] Checking login form elements...")
+
+    # Common selectors for username/email field
+    email_selectors = [
+        'input[type="email"]',
+        'input[name="email"]',
+        'input[name="username"]',
+        'input[id*="email"]',
+        'input[id*="user"]',
+        'input[placeholder*="mail"]',
+        'input[type="text"]',
+    ]
+
+    # Common selectors for password field
+    password_selectors = [
+        'input[type="password"]',
+        'input[name="password"]',
+        'input[id*="pass"]',
+        'input[placeholder*="assword"]',
+    ]
+
+    # Common selectors for submit button
+    button_selectors = [
+        'button[type="submit"]',
+       
+    ]
+
+    # Find email/username field
+    email_field = None
+    for sel in email_selectors:
+        if page.locator(sel).count() > 0:
+            email_field = sel
+            print(f"  PASS - Email/Username field found: {sel}")
+            break
+    if not email_field:
+        print("  WARN - Email/Username field not found with common selectors")
+
+    # Find password field
+    password_field = None
+    for sel in password_selectors:
+        if page.locator(sel).count() > 0:
+            password_field = sel
+            print(f"  PASS - Password field found: {sel}")
+            break
+    if not password_field:
+        print("  WARN - Password field not found")
+
+    # Find submit button
+    submit_button = None
+    for sel in button_selectors:
+        if page.locator(sel).count() > 0:
+            submit_button = sel
+            print(f"  PASS - Submit button found: {sel}")
+            break
+    if not submit_button:
+        print("  WARN - Submit button not found with common selectors")
+
+    # ─────────────────────────────────────────
+    # TEST 3: Empty Form Submission (Validation)
+    # Check that the form shows errors on empty submit
+    # ─────────────────────────────────────────
+    print("\n[TEST 3] Testing empty form submission (validation)...")
+    if submit_button:
+        page.locator(submit_button).click()
+        page.wait_for_timeout(1500)  # wait 1.5 seconds for validation to appear
+
+        # Check if URL changed (it should NOT change on empty submit)
+        if page.url == LOGIN_URL or "auth" in page.url:
+            print("  PASS - Page did not navigate away (form validation working)")
+        else:
+            print("  WARN - Page navigated away on empty submit:", page.url)
+        page.screenshot(path="QR/test3_empty_submit.png", full_page=True)
+        print("  Screenshot saved: QR/test3_empty_submit.png")
+    else:
+        print("  SKIP - No submit button found")
+
+    # ─────────────────────────────────────────
+    # TEST 4: Wrong Credentials
+    # Check that login fails with fake credentials
+    # ─────────────────────────────────────────
+    print("\n[TEST 4] Testing login with wrong credentials...")
+
+    # Reload fresh page
+    page.goto(LOGIN_URL, wait_until="networkidle")
+
+    if email_field and password_field and submit_button:
+        page.locator(email_field).fill("wronguser@test.com")
+        page.locator(password_field).fill("WrongPassword123")
+        page.locator(submit_button).click()
+        page.wait_for_timeout(2000)  # wait for error message
+
+        # Check if still on login page (should be)
+        if "auth" in page.url or page.url == LOGIN_URL:
+            print("  PASS - Wrong credentials did not log in (still on auth page)")
+        else:
+            print("  WARN - Page navigated away with wrong credentials:", page.url)
+        page.screenshot(path="QR/test4_wrong_credentials.png", full_page=True)
+        print("  Screenshot saved: QR/test4_wrong_credentials.png")
+    else:
+        print("  SKIP - Required form fields not found")
+        
+        # ─────────────────────────────────────────
+    # TEST 6: Screenshot of Current State
+    # ─────────────────────────────────────────
+    print("\n[TEST 6] Taking screenshot...")
+    page.screenshot(path="QR/login_page.png", full_page=True)
+    print("  Screenshot saved: QR/login_page.png")
+    
+
+    # ─────────────────────────────────────────
+    # TEST 5: Valid Credentials Login
+    # ─────────────────────────────────────────
+    print("\n[TEST 5] Testing login with valid credentials...")
+
+    VALID_EMAIL = "shrivastavaharshwardhan@gmail.com"
+    VALID_PASSWORD = "RC521"
+
+    page.goto(LOGIN_URL, wait_until="networkidle")
+
+    if email_field and password_field and submit_button:
+        page.locator(email_field).first.fill(VALID_EMAIL)
+        page.locator(password_field).first.fill(VALID_PASSWORD)
+        page.locator(submit_button).click()
+        page.wait_for_timeout(3000)
+
+        if page.url != LOGIN_URL and "login" not in page.url:
+            print("  PASS - Login successful, navigated to:", page.url)
+        else:
+            print("  FAIL - Login failed, still on login page:", page.url)
+    else:
+        print("  SKIP - Required form fields not found")
+
+    # ─────────────────────────────────────────
+    # TEST 6: Screenshot of Current State
+    # ─────────────────────────────────────────
+    print("\n[TEST 6] Taking screenshot...")
+    page.screenshot(path="QR/login_page.png", full_page=True)
+    print("  Screenshot saved: QR/login_page.png")
+
+    # ─────────────────────────────────────────
+    # TEST 7: Click Module Icon and Select skillaTracker
+    # ─────────────────────────────────────────
+    print("\n[TEST 7] Clicking module icon and selecting skillaTracker...")
+
+    # Click the module switcher button inside .app-items
+    page.locator('.app-items .MuiButtonBase-root').first.click()
+    print("  Clicked module switcher button")
+
+    page.wait_for_timeout(1500)
+    page.screenshot(path="QR/test7_module_menu_open.png", full_page=True)
+    print("  Screenshot saved: QR/test7_module_menu_open.png")
+
+    # Click on skillaTracker
+    tracker_selectors = [
+        'text=skillaTracker',
+        '[alt*="Tracker"]',
+        'img[src*="Tracker"]',
+        '[class*="tracker"]',
+    ]
+
+    tracker_found = False
+    for sel in tracker_selectors:
+        if page.locator(sel).count() > 0:
+            page.locator(sel).first.click()
+            tracker_found = True
+            break
+
+    page.wait_for_timeout(2000)
+
+    if tracker_found:
+        print("  PASS - skillaTracker module selected, navigated to:", page.url)
+    else:
+        print("  WARN - skillaTracker option not found with known selectors")
+
+    page.screenshot(path="QR/test7_skilla_tracker.png", full_page=True)
+    print("  Screenshot saved: QR/test7_skilla_tracker.png")
+
+    # ─────────────────────────────────────────
+    # TEST 8: Click Users tab then + User button
+    # ─────────────────────────────────────────
+    print("\n[TEST 8] Clicking Users tab and + User button...")
+
+    # Click the Users tab in the top navigation
+    page.locator('text=Users').first.click()
+    page.wait_for_timeout(1500)
+    page.screenshot(path="QR/test8_users_tab.png", full_page=True)
+    print("  Screenshot saved: QR/test8_users_tab.png")
+
+    # Click the + User button (the + is a MUI icon, button text is "User")
+    add_user_btn = page.get_by_role("button", name="User", exact=True)
+    if add_user_btn.count() > 0:
+        add_user_btn.click()
+        print("  PASS - Clicked + User button")
+    else:
+        print("  WARN - + User button not found")
+
+    page.wait_for_timeout(1500)
+    page.screenshot(path="QR/test8_add_user_form.png", full_page=True)
+    print("  Screenshot saved: QR/test8_add_user_form.png")
+
+    # ─────────────────────────────────────────
+    # TEST 9: Validate Create User form - empty submit
+    # ─────────────────────────────────────────
+    print("\n[TEST 9] Validating Create User form with empty fields...")
+
+    # Click Save without entering any data
+    page.get_by_role("button", name="Save").click()
+    page.wait_for_timeout(1500)
+
+    # Check for validation error messages
+    error_texts = [
+        'text=Please Enter UID',
+        'text=Please Enter First Name',
+        'text=Please Enter Email',
+        'text=Please Select User Type',
+        '[class*="error"]',
+        '[style*="color: red"]',
+        '[style*="color:red"]',
+    ]
+
+    errors_found = []
+    for sel in error_texts:
+        if page.locator(sel).count() > 0:
+            errors_found.append(sel)
+
+    if errors_found:
+        print(f"  PASS - Validation errors shown: {errors_found}")
+    else:
+        print("  WARN - No visible validation errors detected")
+
+    page.screenshot(path="QR/test9_create_user_validation.png", full_page=True)
+    print("  Screenshot saved: QR/test9_create_user_validation.png")
+
+    # ─────────────────────────────────────────
+    # TEST 10: Fill Create User form with valid data and Save
+    # ─────────────────────────────────────────
+    print("\n[TEST 10] Filling Create User form with valid data...")
+
+    # Close any open modal (from TEST 9 validation errors) and reopen fresh
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(500)
+    page.get_by_role("button", name="User", exact=True).click()
+    page.wait_for_timeout(1000)
+
+    # Fill only mandatory fields
+    page.locator('input.css-1x5jdmq').nth(0).click()
+    page.locator('input.css-1x5jdmq').nth(0).fill("145")                    # UID*
+
+    page.locator('input.css-1x5jdmq').nth(1).click()
+    page.locator('input.css-1x5jdmq').nth(1).fill("Gopal")                  # First Name*
+
+    page.locator('input.css-1x5jdmq').nth(3).click()
+    page.locator('input.css-1x5jdmq').nth(3).fill("gopal145@gmail.com")     # Email*
+
+    # User Type* — input index 5 inside .MuiModal-root (different class from other fields)
+    user_type_input = page.locator('.MuiModal-root input').nth(5)
+    user_type_input.scroll_into_view_if_needed()
+    page.wait_for_timeout(500)
+    user_type_input.click()
+    page.wait_for_timeout(1000)
+
+    page.screenshot(path="QR/test10_dropdown_open.png")
+    print("  Screenshot saved: QR/test10_dropdown_open.png")
+
+    # Select Identified from the dropdown options
+    option = page.get_by_role("option", name="Identified")
+    if option.count() > 0:
+        option.click()
+        page.wait_for_timeout(500)
+        print("  PASS - User Type set to Identified")
+    else:
+        # Fallback: try clicking text within the dropdown popup
+        page.locator('[role="listbox"]').get_by_text("Identified").click()
+        page.wait_for_timeout(500)
+        print("  PASS - User Type set to Identified (fallback)")
+
+    # Screenshot to confirm form is fully filled before Save
+    page.screenshot(path="QR/test10_create_user_filled.png", full_page=True)
+    print("  Screenshot saved: QR/test10_create_user_filled.png")
+
+    # Step 4: Click Save — scroll it into view first
+    page.evaluate("""() => {
+        const btn = Array.from(document.querySelectorAll('.MuiModal-root button'))
+                        .find(b => b.innerText.trim() === 'Save');
+        if (btn) btn.scrollIntoView({behavior:'instant', block:'center'});
+    }""")
+    page.wait_for_timeout(500)
+    page.get_by_role("button", name="Save").click()
+    page.wait_for_timeout(2000)
+
+    page.screenshot(path="QR/test10_create_user_saved.png", full_page=True)
+    print("  Screenshot saved: QR/test10_create_user_saved.png")
+
+    # Check if modal closed (success) or still open (error/duplicate)
+    if page.locator('text=Create User').count() == 0:
+        print("  PASS - User created successfully (modal closed)")
+    else:
+        # Check if user already exists error is shown
+        if page.locator('text=already').count() > 0 or page.locator('text=exists').count() > 0 or page.locator('text=duplicate').count() > 0:
+            print("  INFO - User already exists, skipping to next step")
+        else:
+            print("  WARN - Modal still open, check for errors")
+        # Close the modal and continue
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(500)
+
+    # ─────────────────────────────────────────
+    # TEST 11: Click Setup tab (right of Users), then Camera Setup, then + Camera
+    # ─────────────────────────────────────────
+    print("\n[TEST 11] Navigating to Camera Setup and opening Create Camera Configuration...")
+
+    # Step 1: Click Setup tab (right side of Users in top nav)
+    page.locator('text=Setup').first.click()
+    page.wait_for_timeout(1500)
+    page.screenshot(path="QR/test11_setup_tab.png", full_page=True)
+    print("  Screenshot saved: QR/test11_setup_tab.png")
+    print("  Clicked Setup tab, current URL:", page.url)
+
+    # Step 2: Click Camera Setup
+    page.locator('text=Camera Setup').first.click()
+    page.wait_for_timeout(1500)
+    page.screenshot(path="QR/test11_camera_setup.png", full_page=True)
+    print("  Screenshot saved: QR/test11_camera_setup.png")
+    print("  Clicked Camera Setup, current URL:", page.url)
+
+    # Step 3: Click + Camera button
+    add_camera_btn = page.get_by_role("button", name="Camera", exact=True)
+    if add_camera_btn.count() > 0:
+        add_camera_btn.click()
+        print("  PASS - Clicked + Camera button")
+    else:
+        # Fallback: try other selectors
+        page.locator('button:has-text("Camera")').first.click()
+        print("  PASS - Clicked + Camera button (fallback)")
+
+    page.wait_for_timeout(1500)
+    page.screenshot(path="QR/test11_create_camera.png", full_page=True)
+    print("  Screenshot saved: QR/test11_create_camera.png")
+
+    # Check if Create Camera Configuration modal opened
+    if page.locator('text=Create Camera').count() > 0:
+        print("  PASS - Create Camera Configuration modal opened")
+    else:
+        print("  WARN - Create Camera Configuration modal not detected")
+
+    # ─────────────────────────────────────────
+    # TEST 12: Validate Create Camera Configuration - empty submit
+    # ─────────────────────────────────────────
+    print("\n[TEST 12] Validating Create Camera Configuration with empty fields...")
+
+    # Click Save without entering any data
+    page.get_by_role("button", name="Save").click()
+    page.wait_for_timeout(1500)
+
+    # Check for validation error messages
+    error_texts = [
+        'text=Please Enter',
+        'text=Please Select',
+        'text=required',
+        '[class*="error"]',
+        '[style*="color: red"]',
+        '[style*="color:red"]',
+    ]
+
+    errors_found = []
+    for sel in error_texts:
+        if page.locator(sel).count() > 0:
+            errors_found.append(sel)
+
+    if errors_found:
+        print(f"  PASS - Validation errors shown: {errors_found}")
+    else:
+        print("  WARN - No visible validation errors detected")
+
+    page.screenshot(path="QR/test12_camera_validation.png", full_page=True)
+    print("  Screenshot saved: QR/test12_camera_validation.png")
+
+    # ─────────────────────────────────────────
+    # TEST 13: Fill Create Camera Configuration with valid data and Save
+    # ─────────────────────────────────────────
+    print("\n[TEST 13] Filling Create Camera Configuration with valid data...")
+
+    # Form closed after TEST 12 Save — click + Camera to open fresh form
+    page.get_by_role("button", name="Camera", exact=True).click()
+    page.wait_for_timeout(3000)
+
+    # Step 1: Camera Brand — find the autocomplete input and click to open dropdown
+    brand_input = page.locator('input[placeholder="Hikvision"]')
+    if brand_input.count() > 0:
+        brand_input.scroll_into_view_if_needed()
+        page.wait_for_timeout(300)
+        brand_input.click()
+        page.wait_for_timeout(1000)
+        option = page.get_by_role("option", name="Hikvision")
+        if option.count() > 0:
+            option.click()
+            page.wait_for_timeout(500)
+            print("  PASS - Camera Brand set to Hikvision")
+        else:
+            print("  WARN - Hikvision option not found in dropdown")
+    else:
+        print("  WARN - Camera Brand input not found")
+
+    # Step 2: IP Address
+    page.locator('input[placeholder="127.0.0.1"]').click()
+    page.locator('input[placeholder="127.0.0.1"]').fill("14.99.246.6")
+    print("  PASS - IP Address set to 14.99.246.6")
+
+    # Step 3: Port
+    page.locator('input[placeholder="554"]').click()
+    page.locator('input[placeholder="554"]').fill("1002")
+    print("  PASS - Port set to 1002")
+
+    # Step 4: Camera ID
+    page.locator('input[placeholder="102"]').click()
+    page.locator('input[placeholder="102"]').fill("201")
+    print("  PASS - Camera ID set to 201")
+
+    # Step 5: User Name
+    page.locator('input[placeholder="User"]').click()
+    page.locator('input[placeholder="User"]').fill("admin")
+    print("  PASS - User Name set to admin")
+
+    # Step 6: Password
+    page.locator('input[placeholder="User@123"]').click()
+    page.locator('input[placeholder="User@123"]').fill("Rcz@12345")
+    print("  PASS - Password set to Rcz@12345")
+
+    page.screenshot(path="QR/test13_camera_filled.png", full_page=True)
+    print("  Screenshot saved: QR/test13_camera_filled.png")
+
+    # Step 7: Click Save
+    page.get_by_role("button", name="Save").click()
+    page.wait_for_timeout(2000)
+
+    page.screenshot(path="QR/test13_camera_saved.png", full_page=True)
+    print("  Screenshot saved: QR/test13_camera_saved.png")
+
+    # Check if form closed (success)
+    if page.locator('text=Create Camera Configuration').count() == 0:
+        print("  PASS - Camera created successfully (form closed)")
+    else:
+        print("  WARN - Form still open, check for errors")
+
+    # ─────────────────────────────────────────
+    # SUMMARY
+    # ─────────────────────────────────────────
+    print("\n" + "=" * 50)
+    print("All tests completed!")
+    print("Screenshots saved in QR/ folder")
+    print("=" * 50)
+
+    try:
+        input("\n  Browser open. Press Enter to close...")
+    except EOFError:
+        page.wait_for_timeout(5000)
+    browser.close()
